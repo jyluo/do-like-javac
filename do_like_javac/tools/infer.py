@@ -33,7 +33,7 @@ def run(args, javac_commands, jars):
         cmd = get_tool_command(args, jc['javac_switches']['classpath'], jc['java_files'], jaif_file)
         status = common.run_cmd(cmd, args, 'infer')
         if args.crashExit and not status['return_code'] == 0:
-            print "----- CF Inference crashed! Terminates DLJC. -----"
+            print "----- CF Inference/Typecheck crashed! Terminates DLJC. -----"
             sys.exit(1)
         idx += 1
 
@@ -41,6 +41,13 @@ def get_tool_command(args, target_classpath, java_files, jaif_file="default.jaif
     # the dist directory of CFI.
     CFI_dist = os.path.join(os.environ['JSR308'], 'checker-framework-inference', 'dist')
     CFI_command = ['java']
+
+    # the root directory of UI.
+    UI_path = os.environ['UI']
+
+    target_classpath = target_classpath + \
+             ':' + os.path.join(UI_path, 'bin') + \
+             ':' + os.path.join(UI_path, 'dist', 'units-inference.jar')
 
     cp = target_classpath + \
              ':' + os.path.join(CFI_dist, 'checker.jar') + \
@@ -50,8 +57,15 @@ def get_tool_command(args, target_classpath, java_files, jaif_file="default.jaif
     if 'CLASSPATH' in os.environ:
         cp += ':' + os.environ['CLASSPATH']
 
-    CFI_command += ['-classpath', cp,
+    # needed to have a project's dependent jars available in CF's type check mode
+    os.environ['CLASSPATH'] = target_classpath + ':' + os.environ['CLASSPATH']
+
+    # type checking optional arg
+    # args.cfArgs += "-AprintErrorStack"
+
+    CFI_command += [         '-classpath', cp,
                              'checkers.inference.InferenceLauncher',
+                             # '-p', # printCommands before executing
                              '--solverArgs', args.solverArgs,
                              '--cfArgs', args.cfArgs,
                              '--checker', args.checker,
